@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PLO Sparring — play real hands vs the computer</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#0c1a12;color:#e8f0e9;font-family:-apple-system,system-ui,sans-serif;min-height:100vh}
+header{background:#122716;padding:10px 14px;border-bottom:1px solid #1f3a28;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+header .t{font-weight:800;font-size:15px}
+header .sp{flex:1}
+header .stat{font-size:12px;color:#8fa896;text-align:right;line-height:1.4}
+header .stat b{color:#fff}
+#netpos{color:#2ecc71}#netneg{color:#e74c3c}
+header button{background:#1f3a28;color:#8fa896;border:1px solid #2c4f36;border-radius:8px;padding:6px 10px;font-size:14px}
+main{max-width:600px;margin:0 auto;padding:10px 10px 40px}
+#boardwrap{background:#132a1a;border:1px solid #1f3a28;border-radius:12px;padding:12px;margin-bottom:10px;text-align:center}
+#potline{font-size:13px;color:#ffd76a;font-weight:700;margin-bottom:8px}
+.cards{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.card{width:46px;height:64px;background:#f5f2ea;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.card .r{font-size:18px;line-height:1}.card .s{font-size:18px;line-height:1}
+.card.red{color:#c0392b}.card.blk{color:#1a1a1a}
+.card.back{background:#274b33;color:#3c6650}
+.card.ph{background:transparent;box-shadow:none;border:2px dashed #2c4f36}
+#opps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.opp{background:#132a1a;border:1px solid #1f3a28;border-radius:10px;padding:6px 4px;text-align:center;font-size:11px;position:relative;min-height:76px}
+.opp .p{font-weight:800;color:#ffd76a;font-size:11px}
+.opp .s{color:#8fa896;margin-top:2px}
+.opp .b{color:#fff;font-weight:700;margin-top:2px;min-height:14px}
+.opp.folded{opacity:.35}
+.opp.turn{border-color:#2ecc71;box-shadow:0 0 8px rgba(46,204,113,.4)}
+.opp .w{color:#2ecc71;font-weight:800}
+.opp .hc{font-size:10px;margin-top:2px;letter-spacing:1px}
+#hero{background:#162e1c;border:1px solid #2c4f36;border-radius:12px;padding:12px;margin-bottom:10px;text-align:center}
+#hero .pos{display:inline-block;background:#1f3a28;color:#ffd76a;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;margin-bottom:8px;letter-spacing:1px}
+#hero .stk{font-size:12px;color:#8fa896;margin-top:8px}
+#actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;min-height:56px}
+#actions button{border-radius:10px;padding:14px 8px;font-size:15px;font-weight:800;border:1px solid #2c4f36;background:#1f3a28;color:#fff;cursor:pointer}
+#actions button:active{transform:scale(.97)}
+#actions button.fold{background:#5a1f16;border-color:#e74c3c}
+#actions button.call{background:#1e4a2e;border-color:#2ecc71}
+#actions button:disabled{opacity:.4}
+#actions .wait{grid-column:1/-1;text-align:center;color:#8fa896;font-size:13px;padding:14px}
+#feed{background:#0e1f14;border:1px solid #1f3a28;border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.7;max-height:180px;overflow-y:auto;color:#b9cdc0}
+#feed b{color:#ffd76a}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#1a2e20;border:1px solid #2c4f36;border-radius:12px;padding:12px 18px;font-size:14px;opacity:0;transition:all .25s;z-index:20;max-width:92%;text-align:center;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast .g{font-size:22px;font-weight:900}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+#modal.show{display:flex}
+#modal .box{background:#132a1a;border:1px solid #2c4f36;border-radius:14px;padding:20px;max-width:440px;width:100%;max-height:85vh;overflow-y:auto}
+#modal h2{margin:0 0 10px;font-size:20px}
+#modal .win{color:#2ecc71}#modal .lose{color:#e74c3c}
+#modal .row{font-size:13.5px;margin:6px 0;color:#cfe0d2}
+#modal .gr{font-size:13px;margin:3px 0}
+#modal button{width:100%;background:#2ecc71;color:#06210f;border:none;border-radius:10px;padding:15px;font-size:17px;font-weight:800;margin-top:12px;cursor:pointer}
+.odds{font-size:11.5px;color:#8fa896;text-align:center;margin:-4px 0 10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="t">♠ PLO Sparring</div>
+  <div class="sp"></div>
+  <div class="stat">Hand <b id="hnum">–</b><br><span id="sess">0 hands · <span id="net">+0.0</span>bb</span></div>
+  <button onclick="resetSess()" title="reset session">↺</button>
+</header>
+<main>
+  <div id="boardwrap">
+    <div id="potline">POT 0.0bb</div>
+    <div class="cards" id="board"></div>
+  </div>
+  <div id="opps"></div>
+  <div id="hero">
+    <div><span class="pos" id="heropos">–</span></div>
+    <div class="cards" id="herocards"></div>
+    <div class="stk" id="herostack"></div>
+  </div>
+  <div class="odds" id="odds"></div>
+  <div id="actions"><div class="wait">starting…</div></div>
+  <div id="feed"></div>
+</main>
+<div id="toast"></div>
+<div id="modal"><div class="box" id="modalbox"></div></div>
+
+<script src="core.js?v=2"></script>
+<script src="engine.js?v=2"></script>
+<script>
+window.onerror=function(msg){var f=document.getElementById('feed');if(f){var d=document.createElement('div');d.style.color='#e74c3c';d.textContent='Error: '+msg;f.prepend(d);}};
+const $=id=>document.getElementById(id);
+function cardEl(c){
+  const d=document.createElement('div');
+  if(!c){ d.className='card ph'; return d; }
+  d.className='card '+((c.s===1||c.s===2)?'red':'blk');
+  d.innerHTML='<div class="r">'+RANKS[c.r]+'</div><div class="s">'+SUIT_SYM[c.s]+'</div>';
+  return d;
+}
+function backEl(){ const d=document.createElement('div'); d.className='card back'; d.textContent='♠'; return d; }
+
+let game, pumping=false, lastTurnSeat=-1;
+
+const cb={
+  feed(html){
+    const f=$('feed');
+    const div=document.createElement('div'); div.innerHTML=html;
+    f.prepend(div);
+    while(f.children.length>40) f.lastChild.remove();
+  },
+  update(){ render(); },
+  heroTurn(a){ showActions(a); },
+  grade(g){
+    const col={A:'#2ecc71',B:'#a3e635',C:'#ffd76a',D:'#fb923c',F:'#e74c3c'}[g.grade];
+    const t=$('toast');
+    t.innerHTML=`<span class="g" style="color:${col}">${g.grade}</span><br>`+
+      (g.cost>0.05?`cost <b>${g.cost.toFixed(1)}bb</b> — best was <b>${g.best}</b>`:`optimal`)+
+      `<br><span style="color:#8fa896;font-size:12px">equity ${ (g.eq*100).toFixed(1)}%</span>`;
+    t.classList.add('show');
+    clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), 2600);
+    render();
+  },
+  handEnd(res){ setTimeout(()=>showModal(res), 900); }
+};
+
+function newGame(){
+  game=new Game(cb);
+  game.startHand();
+  pump();
+}
+function pump(){
+  if(pumping) return; pumping=true;
+  (function loop(){
+    const r=game.step();
+    render();
+    if(r.t==='hero'){ pumping=false; return; }
+    if(r.t==='end'){ pumping=false; render(); return; }
+    setTimeout(loop, r.t==='street'?900:550);
+  })();
+}
+function heroAct(type,to){
+  $('actions').innerHTML='<div class="wait">…</div>';
+  $('odds').textContent='';
+  setTimeout(()=>{ game.heroDo(type,to); render(); pump(); }, 60);
+}
+
+function render(){
+  if(!game) return;
+  $('hnum').textContent=game.handNum;
+  const pot=game.handBet.reduce((a,b)=>a+b,0);
+  $('potline').textContent='POT '+pot.toFixed(1)+'bb';
+  // board
+  const bw=$('board'); bw.innerHTML='';
+  for(let i=0;i<5;i++) bw.appendChild(cardEl(game.board[i]));
+  // opponents
+  const op=$('opps'); op.innerHTML='';
+  for(let s=1;s<9;s++){
+    const d=document.createElement('div');
+    const live=!game.folded[s];
+    d.className='opp'+(live?'':' folded')+(s===lastTurnSeat?' turn':'');
+    let inner=`<div class="p">${posName(s,game.button)}</div><div class="s">${game.stacks[s].toFixed(1)}</div><div class="b">${game.streetBet[s]>0.001?game.streetBet[s].toFixed(1):''}</div>`;
+    if(game.handDone && live && game.winners && !game.winners[0].uncontested){
+      inner+=`<div class="hc">${game.hole[s].map(c=>RANKS[c.r]).join('')}</div>`;
+    } else if(!live){ inner+=`<div class="hc">✕</div>`; }
+    if(game.handDone && game.winners && game.winners.some(p=>p.winners.includes(s))) inner+=`<div class="w">WIN</div>`;
+    d.innerHTML=inner;
+    op.appendChild(d);
+  }
+  // hero
+  $('heropos').textContent=posName(0,game.button);
+  const hc=$('herocards'); hc.innerHTML='';
+  game.hole[0].forEach(c=>hc.appendChild(cardEl(c)));
+  $('herostack').textContent='Stack '+game.stacks[0].toFixed(1)+'bb'+(game.streetBet[0]>0.001?' · bet '+game.streetBet[0].toFixed(1):'');
+  // session
+  const goodCt=game.sessGrades.filter(g=>g==='A'||g==='B').length;
+  const avg=game.sessGrades.length?(100*goodCt/game.sessGrades.length):0;
+  $('sess').innerHTML=`${game.sessHands} hands · <span style="color:${game.sessNet>=0?'#2ecc71':'#e74c3c'}">${game.sessNet>=0?'+':''}${game.sessNet.toFixed(1)}</span>bb · <span style="color:#a3e635">${avg.toFixed(0)}% good</span>`;
+}
+
+function showActions(a){
+  const el=$('actions'); el.innerHTML='';
+  lastTurnSeat=0; render();
+  const mk=(label,cls,fn,dis)=>{ const b=document.createElement('button'); b.textContent=label; b.className=cls; if(dis)b.disabled=true; b.onclick=fn; el.appendChild(b); };
+  if(a.toCall>0.001){
+    mk('Fold','fold',()=>heroAct('fold'));
+    const callLbl=a.callAmt>=a.stack-0.001?`Call ${a.callAmt.toFixed(1)} (all-in)`:`Call ${a.callAmt.toFixed(1)}`;
+    mk(callLbl,'call',()=>heroAct('call'));
+    $('odds').textContent=`Call ${a.toCall.toFixed(1)} to win ${(a.pot+a.toCall).toFixed(1)} — need ${(100*a.toCall/(a.pot+a.toCall)).toFixed(1)}%`;
+    if(a.canRaise){
+      const halfR=Math.min(a.maxTo,Math.max(a.minTo,a.currentBet+0.5*(a.pot+a.toCall)));
+      mk(`Raise ${halfR.toFixed(1)}`,'',()=>heroAct('raise',halfR));
+      mk(a.maxTo>=a.streetBet+a.stack-0.001?`All-in ${a.maxTo.toFixed(1)}`:`Raise ${a.maxTo.toFixed(1)}`,'',()=>heroAct('raise',a.maxTo));
+    }
+  } else {
+    mk('Check','call',()=>heroAct('check'));
+    $('odds').textContent='';
+    if(a.canRaise){
+      const half=Math.min(a.maxTo,Math.max(a.minTo,a.pot*0.5));
+      mk(`Bet ${half.toFixed(1)}`,'',()=>heroAct('bet',half));
+      mk(a.maxTo>=a.stack-0.001?`All-in ${a.maxTo.toFixed(1)}`:`Bet ${a.maxTo.toFixed(1)}`,'',()=>heroAct('bet',a.maxTo));
+    }
+  }
+  lastTurnSeat=-1;
+}
+
+function showModal(res){
+  render();
+  const box=$('modalbox');
+  const won=res.net>0.001, lost=res.net<-0.001;
+  let h=`<h2 class="${won?'win':lost?'lose':''}">${won?`You win ${res.net.toFixed(1)}bb 🎉`:lost?`You lose ${(-res.net).toFixed(1)}bb`:'Split / no change'}</h2>`;
+  if(res.pots && !res.pots[0].uncontested){
+    h+=`<div class="row"><b>Showdown</b> — board: ${game.board.map(c=>RANKS[c.r]+SUIT_SYM[c.s]).join(' ')}</div>`;
+    for(const p of res.pots){
+      h+=`<div class="row">Pot ${p.amount.toFixed(1)}bb → `+p.winners.map(s=>
+        `${s===0?'YOU':posName(s,game.button)} (${game.hole[s].map(c=>RANKS[c.r]+SUIT_SYM[c.s]).join(' ')})`
+      ).join(' / ')+`</div>`;
+    }
+  } else if(res.uncontested!==undefined && res.uncontested!==0){
+    h+=`<div class="row">${posName(res.uncontested,game.button)} takes it (everyone folded).</div>`;
+  }
+  if(res.grades && res.grades.length){
+    h+=`<div class="row" style="margin-top:10px"><b>Your decisions</b></div>`;
+    const SN=['preflop','flop','turn','river'];
+    for(const g of res.grades){
+      const col={A:'#2ecc71',B:'#a3e635',C:'#ffd76a',D:'#fb923c',F:'#e74c3c'}[g.grade];
+      h+=`<div class="gr"><span style="color:${col};font-weight:800">${g.grade}</span> ${SN[g.street]} — `+
+        (g.cost>0.05?`cost ${g.cost.toFixed(1)}bb (best: ${g.best})`:'optimal')+`</div>`;
+    }
+  } else {
+    h+=`<div class="row" style="color:#8fa896">No decisions to grade (you folded early or won uncontested).</div>`;
+  }
+  h+=`<button onclick="nextHand()">Next hand →</button>`;
+  box.innerHTML=h;
+  $('modal').classList.add('show');
+}
+function nextHand(){
+  $('modal').classList.remove('show');
+  $('feed').innerHTML='';
+  game.startHand();
+  pump();
+}
+function resetSess(){
+  if(!confirm('Reset session stats?')) return;
+  try{localStorage.removeItem('spar_sess');}catch(e){}
+  game.sessHands=0;game.sessNet=0;game.sessCost=0;game.sessGrades=[];
+  render();
+}
+window.nextHand=nextHand; window.resetSess=resetSess;
+newGame();
+</script>
+</body>
+</html>
